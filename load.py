@@ -11,11 +11,18 @@ import requests
 from config import appname
 
 this = sys.modules[__name__] 
-this.Version = "0.0.3"
+this.Version = "0.0.4"
 this.ApiKey = "" #Insert API key here
 this.CommanderId = "" # Insert FID from main menu here
 this.BrowserSourceUrl = tk.StringVar(master=None, value="placeholder")
-this.MissionList = ["Mission_TW_Rescue_UnderAttack", "Mission_TW_Rescue_Burning", "Mission_TW_PassengerEvacuation_UnderAttack", "Mission_TW_PassengerEvacuation_Burning", "Mission_TW_CollectWing_Repairing", "Mission_TW_Collect_Recovery", "Mission_TW_CollectWing_UnderAttack", "Mission_TW_Collect_UnderAttack"]
+this.MissionList = [
+ "Mission_TW_Rescue_Alert", "Mission_TW_Rescue_UnderAttack",
+ "Mission_TW_Rescue_Burning","Mission_TW_PassengerEvacuation_Alert",
+ "Mission_TW_PassengerEvacuation_UnderAttack", "Mission_TW_PassengerEvacuation_Burning",
+ "Mission_TW_CollectWing_Repairing", "Mission_TW_Collect_Recovery",
+ "Mission_TW_CollectWing_Alert", "Mission_TW_Collect_Alert",
+ "Mission_TW_CollectWing_UnderAttack", "Mission_TW_Collect_UnderAttack"
+]
 
 # This could also be returned from plugin_start3()
 plugin_name = os.path.basename(os.path.dirname(__file__))
@@ -79,6 +86,7 @@ def plugin_app(parent):
     response = requests.get("https://api.cia-gaming.de/v1/thargoid-war/commander", params=params, headers=headers)
     if response.status_code == requests.codes.ok:
         cmdr = response.json()
+        #this.goidsDestroyed == cmdr["commander"]["activityStatistics"]["thargoidsDestroyed"]
         global GoidKills
         global Refugees
         global Wounded
