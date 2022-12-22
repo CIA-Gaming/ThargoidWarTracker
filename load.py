@@ -21,8 +21,8 @@ if TYPE_CHECKING:
 this = sys.modules[__name__] 
 this.base_url : str = "https://api.cia-gaming.de/v1/thargoid-war"
 this.version : str = "0.0.5"
-this.api_key : str = "WTwt5TGJSEer7_fVkFEKqA"
-this.commander_id : str = "b3wstrz"
+this.api_key : str = ""
+this.commander_id : str = ""
 this.browsersource_url : tk.StringVar = tk.StringVar(master=None, value="placeholder")
 this.mission_list : List[str] = [
  "Mission_TW_Rescue_Alert", "Mission_TW_Rescue_UnderAttack",
