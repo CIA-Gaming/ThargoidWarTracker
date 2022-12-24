@@ -1,4 +1,3 @@
-import threading
 from threading import Thread
 from queue import Queue
 import logging
@@ -6,13 +5,14 @@ import os.path
 import sys
 import tkinter as tk
 import logging
+import plug
+import monitor
 from tkinter import ttk
 from typing import TYPE_CHECKING, Any, List, Dict, Mapping, MutableMapping, Optional, Tuple
 
 import myNotebook as nb
-import requests
-from config import appname, config, user_agent
-from companion import CAPIData
+from requests import Response, Session
+from config import appname, user_agent
 
 if TYPE_CHECKING:
     def _(x: str) -> str:
@@ -34,6 +34,7 @@ this.mission_list : List[str] = [
 ]
 
 this.last_cmdr_lookup : Any = None
+this.last_cmdrhistory_lookup : Any = None
 
 # UI elements
     # Preferences
@@ -47,17 +48,18 @@ this.emergencysupplies_label : tk.Label = None
 this.recoverysupplies_label : tk.Label = None
 
 # internals
-this.getcmdr_type = "GET_CMDR"
-this.recordactivity_type ="RECORD_ACTIVITY"
+this.getcmdr_type : str = "GET_CMDR"
+this.getcmdrhistory_type : str = "GET_CMDR_HISTORY"
+this.recordactivity_type : str = "RECORD_ACTIVITY"
 
 this.shutting_down : bool = False
 
-this.session: requests.Session = requests.Session()
+this.session: Session = Session()
 this.session.headers['User-Agent'] = user_agent
 this.session.headers['Authorization'] = this.api_key
 
 this.queue : Queue = Queue()
-this.thread : Optional[threading.Thread] = None
+this.thread : Optional[Thread] = None
 
 # setup logging
 plugin_name : str = os.path.basename(os.path.dirname(__file__))
@@ -84,7 +86,7 @@ def plugin_start3(plugin_dir: str) -> str:
     this.thread.daemon = True
     this.thread.start()
 
-    return "[TCIA] Thargoid War Tracker v" + this.version
+    return "Thargoid War Tracker v" + this.version
 
 def plugin_stop() -> None:
     """Stop this plugin."""
@@ -94,11 +96,12 @@ def plugin_stop() -> None:
     this.shutting_down = True
     this.queue.put(None)
 
+    this.thread.stop()
     this.thread.join()
     this.thread = None
 
     this.session.close()
-    logger.debug("Done.")
+    logger.debug("TWT stopped.")
 
 def plugin_prefs(parent: tk.Tk, cmdr: str, is_beta: bool) -> tk.Frame:
     """
@@ -134,7 +137,7 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
     this.frame.bind_all("<<RecordedActivity>>", fetch_cmdr)
     # tk.Button(this.frame, text='Update', command=update_war_data).grid(row=1, column=2, padx=8)
     Title = tk.Label(
-    this.frame, text=f'[TCIA] Thargoid War Tracker v{this.version}')
+    this.frame, text=f'Thargoid War Tracker v{this.version}')
     Title.grid(row=0, column=0, sticky=tk.W)
     this.goidkills_label = tk.Label(this.frame, text='Thargoids killed: 0')
     this.goidkills_label.grid(row=1, column=0, sticky=tk.W)
@@ -152,11 +155,11 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
 
     return this.frame
 
-def fetch_cmdr(event=None) -> None:
+def fetch_cmdr(event = None) -> None:
     params : Dict =  { 'id': this.commander_id }
     this.queue.put((this.getcmdr_type, params))
 
-def update_war_data(event=None) -> None:
+def update_war_data(event = None) -> None:
         if this.last_cmdr_lookup: 
             this.goidkills_label.config(text=f'Thargoids killed: {this.last_cmdr_lookup["commander"]["activityStatistics"]["thargoidsDestroyed"]}')
             this.refugees_label.config(text=f'Refugees evacuated: {this.last_cmdr_lookup["commander"]["activityStatistics"]["refugeesEvacuated"]}')
@@ -165,18 +168,24 @@ def update_war_data(event=None) -> None:
             this.recoverysupplies_label.config(text=f'Recovery supplies delivered: {this.last_cmdr_lookup["commander"]["activityStatistics"]["recoverySuppliesDelivered"]}')
             update_browser_source(event)
 
-def update_browser_source(event=None) -> None:
+def update_browser_source(event = None) -> None:
         if this.last_cmdr_lookup:
             this.browsersource_url.set(this.last_cmdr_lookup["commander"]["browserSourceUrl"])
 
 def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, any]) -> None:
+    if is_beta == True:
+        return
+
     if entry["event"] == "FactionKillBond":
         if entry["VictimFaction"] == "$faction_Thargoid;":
+            logger.debug(f'FID: {state["FID"]}')
             body : Dict = { "commanderId": this.commander_id, "type": "FactionKillBond", "bondTargetFaction": entry["VictimFaction"] }
             this.queue.put((this.recordactivity_type, body))
+            return
     
     if entry["event"] == "MissionAccepted":
         if str(entry["Name"]).startswith(tuple(this.mission_list)):
+            logger.debug(f'FID: {state["FID"]}')
             body : Dict = { 
                 "commanderId": this.commander_id, 
                 "type": "MissionAccepted",
@@ -189,33 +198,40 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
                 ]
             }
             this.queue.put((this.recordactivity_type, body))
+            return
     
     if entry["event"] == "MissionCompleted":
-        if str(entry["Name"]).startswith(tuple(this.mission_list)):            
+        if str(entry["Name"]).startswith(tuple(this.mission_list)):
+            logger.debug(f'CMDR: {cmdr} - FID: {state["FID"]}')            
             body : Dict = { 
                 "commanderId": this.commander_id, 
                 "type": "MissionCompleted",
                 "missionId": entry["MissionID"]
             }
             this.queue.put((this.recordactivity_type, body))
+            return
 
     if entry["event"] == "MissionFailed":
         if str(entry["Name"]).startswith(tuple(this.mission_list)):
+            logger.debug(f'FID: {state["FID"]}')
             body = { 
                 "commanderId": this.commander_id, 
                 "type": "MissionFailed",
                 "missionId": entry["MissionID"]
             }
             this.queue.put((this.recordactivity_type, body))
+            return
 
     if entry["event"] == "MissionAbandoned":
         if str(entry["Name"]).startswith(tuple(this.mission_list)):
+            logger.debug(f'FID: {state["FID"]}')
             body = { 
                 "commanderId": this.commander_id, 
                 "type": "MissionAbandoned",
                 "missionId": entry["MissionID"]
             }
             this.queue.put((this.recordactivity_type, body))
+            return
 
 def worker() -> None:
     """
@@ -247,13 +263,32 @@ def worker() -> None:
             logger.debug('closing, so returning.')
             return
 
-        if type == "GET_CMDR":
-            response : requests.Response = this.session.get(f'{this.base_url}/commander', params=params)
-            response.raise_for_status()
-            this.last_cmdr_lookup = response.json()
-            this.frame.event_generate("<<GetCMDR>>", when="tail")
+        retrying = 0
+        while retrying < 3:
+            try:
+                if type == this.getcmdr_type:
+                    response : Response = this.session.get(f'{this.base_url}/commander', params=params)
+                    response.raise_for_status()
+                    this.last_cmdr_lookup = response.json()
+                    this.frame.event_generate("<<GetCMDR>>", when="tail")
+                elif type == this.getcmdrhistory_type: 
+                    response : Response = this.session.get(f'{this.base_url}/commander/history', params=params)
+                    response.raise_for_status()
+                    this.last_cmdrhistory_lookup = response.json()
+                    #this.frame.event_generate("<<GetCMDRHistory>>", when="tail")
+                elif type == this.recordactivity_type:
+                    if not monitor.monitor.is_live_galaxy():
+                        logger.error("TWT only supports the live galaxy")
+                        break                    
+                    response : Response = this.session.post(f'{this.base_url}/activity', json=params)
+                    response.raise_for_status()
+                    this.frame.event_generate("<<RecordedActivity>>", when="tail")
 
-        if type == "RECORD_ACTIVITY":
-            response : requests.Response = this.session.post(f'{this.base_url}/activity', json=params)
-            response.raise_for_status()
-            this.frame.event_generate("<<RecordedActivity>>", when="tail")
+                break
+            except Exception as err:
+                logger.debug(f'Attempt to connect to TWT API: retrying == {retrying}', exc_info=err)
+                logger.debug("Closing session as it seems to be dead. It's dead Jim!")
+                this.session.close()
+                retrying += 1
+        else:
+            plug.show_error("Error: Can't connect to TWT API")
