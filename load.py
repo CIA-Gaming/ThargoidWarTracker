@@ -33,8 +33,13 @@ this.mission_list : List[str] = [
  "Mission_TW_CollectWing_UnderAttack", "Mission_TW_Collect_UnderAttack"
 ]
 
+# state
 this.last_cmdr_lookup : Any = None
 this.last_cmdrhistory_lookup : Any = None
+
+this.current_star_system_name : str = None
+this.current_star_system_address : int = None
+this.current_station: str = None
 
 # UI elements
     # Preferences
@@ -52,6 +57,7 @@ this.getcmdr_type : str = "GET_CMDR"
 this.getcmdrhistory_type : str = "GET_CMDR_HISTORY"
 this.recordactivity_type : str = "RECORD_ACTIVITY"
 
+this.is_initialized = False
 this.shutting_down : bool = False
 
 this.session: Session = Session()
@@ -133,9 +139,9 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
     :return: See PLUGINS.md#display
     """
     this.frame = tk.Frame(parent)
+    this.frame.columnconfigure(1, weight=1)
     this.frame.bind_all("<<GetCMDR>>", update_war_data)
     this.frame.bind_all("<<RecordedActivity>>", fetch_cmdr)
-    # tk.Button(this.frame, text='Update', command=update_war_data).grid(row=1, column=2, padx=8)
     Title = tk.Label(
     this.frame, text=f'Thargoid War Tracker v{this.version}')
     Title.grid(row=0, column=0, sticky=tk.W)
@@ -149,6 +155,8 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
     this.emergencysupplies_label.grid(row=4, column=0, sticky=tk.W)
     this.recoverysupplies_label = tk.Label(this.frame, text='Recovery supplies delivered: 0')
     this.recoverysupplies_label.grid(row=5, column=0, sticky=tk.W)
+    tk.Button(this.frame, text='Details', command=update_war_data).grid(row=1, column=1, padx=8)
+    tk.Button(this.frame, text='Previous Tick', command=update_war_data).grid(row=3, column=1, padx=8)
 
     params : Dict =  { 'id': this.commander_id }
     this.queue.put((this.getcmdr_type, params))
@@ -174,6 +182,43 @@ def update_browser_source(event = None) -> None:
 
 def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, any]) -> None:
     if is_beta == True:
+        return
+
+    if entry["event"] == "Location":
+        logger.debug(f'FID: {state["FID"]}')
+        this.current_star_system_name = entry["StarSystem"]
+        this.current_star_system_address = entry["SystemAddress"]
+        if entry["Docked"] == True:
+            this.current_station = entry["StationName"]
+        return
+
+    if entry["event"] == "FSDJump":
+        logger.debug(f'FID: {state["FID"]}')
+        this.current_star_system_name = entry["StarSystem"]       
+        this.current_star_system_address = entry["SystemAddress"] 
+        return
+
+    if entry["event"] == "CarrierJump":
+        logger.debug(f'FID: {state["FID"]}')
+        this.current_star_system_name = entry["StarSystem"]
+        this.current_star_system_address = entry["SystemAddress"] 
+        if entry["Docked"] == True:
+            this.current_station = entry["StationName"]
+        return
+
+    if entry["event"] == "Docked":
+        this.current_station = entry["StationName"]
+        return
+
+    if entry["event"] == "SupercruiseExit":
+        logger.debug(f'FID: {state["FID"]}')
+        if entry["BodyType"] == "Station":
+            this.current_station = entry["Body"]
+        return
+    
+    if entry["event"] == "ApproachSettlement":
+        logger.debug(f'FID: {state["FID"]}')
+        this.current_station = entry["Name"]
         return
 
     if entry["event"] == "FactionKillBond":
