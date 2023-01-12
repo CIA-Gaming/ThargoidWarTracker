@@ -41,7 +41,7 @@ this.last_cmdrhistory_lookup : Any = None
 this.current_star_system_name : str = None
 this.current_star_system_address : int = None
 this.current_station: str = None
-this.current_station_market_id : str = None
+this.current_station_market_id : int = None
 
 #config
 this.apikey : str = None
@@ -109,7 +109,12 @@ def plugin_start3(plugin_dir: str) -> str:
 def plugin_stop() -> None:
     """Stop this plugin."""
 
-    logger.debug("Shutting down...")
+    logger.debug("Shutting down...")   
+
+    config.set(f'twt_{this.cmdr_name}_lastSystemName', this.current_star_system_name)
+    config.set(f'twt_{this.cmdr_name}_lastSystemAddress', this.current_star_system_address)
+    config.set(f'twt_{this.cmdr_name}_lastStationName', this.current_station)
+    config.set(f'twt_{this.cmdr_name}_lastStationMarketId', this.current_station_market_id)
 
     this.shutting_down = True
     this.queue.put(None)
@@ -211,6 +216,16 @@ def check_cmdr_name():
     this.apikey = config.get_str(f'twt_{this.cmdr_name}_apikey')
     this.apikey_tk.set(this.apikey)
     this.session.headers['Authorization'] = this.apikey
+
+    this.current_star_system_name = config.get_str(f'twt_{this.cmdr_name}_lastSystemName')
+    this.current_star_system_address = config.get_int(f'twt_{this.cmdr_name}_lastSystemAddress')
+    this.current_station = config.get_str(f'twt_{this.cmdr_name}_lastStationName')
+    this.current_station_market_id = config.get_int(f'twt_{this.cmdr_name}_lastStationMarketId')
+
+    logger.debug(this.current_star_system_name)
+    logger.debug(this.current_star_system_address)
+    logger.debug(this.current_station)
+    logger.debug(this.current_station_market_id)
 
     if this.is_initialized == False and this.apikey is not None:
         params: Dict = { }
