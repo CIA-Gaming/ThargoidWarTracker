@@ -7,8 +7,9 @@ import tkinter as tk
 import logging
 import plug
 from monitor import monitor
-from companion import CAPIData, SERVER_LIVE
+from companion import CAPIData
 from tkinter import ttk
+from ttkHyperlinkLabel import HyperlinkLabel
 from typing import TYPE_CHECKING, Any, List, Dict, Mapping, MutableMapping, Optional, Tuple
 
 import myNotebook as nb
@@ -21,7 +22,8 @@ if TYPE_CHECKING:
 
 this = sys.modules[__name__] 
 this.base_url : str = "https://twt.cia-gaming.de/api/v2"
-this.version : str = "0.1.0"
+this.version : str = "0.1.1"
+this.git_version: str = None
 this.cmdr_name : str = None
 this.browsersource_url : tk.StringVar = tk.StringVar(master=None, value="placeholder")
 this.mission_list : List[str] = [
@@ -104,6 +106,10 @@ def plugin_start3(plugin_dir: str) -> str:
     timer = Timer(1.0, check_cmdr_name)
     timer.start()
 
+    response = this.session.get('https://api.github.com/repos/CIA-Gaming/ThargoidWarTracker/releases/latest')  # check latest version
+    latest = response.json()
+    this.git_version = latest['tag_name']
+
     return "Thargoid War Tracker v" + this.version
 
 def plugin_stop() -> None:
@@ -172,6 +178,8 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
     this.frame.bind_all("<<RecordedActivity>>", fetch_cmdr_activity)
     Title = tk.Label(this.frame, text=f'Thargoid War Tracker v{this.version}')
     Title.grid(row=0, column=0, sticky=tk.W)
+    if version_tuple(this.git_version) > version_tuple(this.version):
+        HyperlinkLabel(this.frame, text="New version available", background=nb.Label().cget("background"), url="https://github.com/CIA-Gaming/ThargoidWarTracker/releases/latest", underline=True).grid(row=0, column=1, sticky=tk.W)
     this.goidkills_label = tk.Label(this.frame, text='Thargoids killed: 0')
     this.goidkills_label.grid(row=1, column=0, sticky=tk.W)
     this.refugees_label = tk.Label(this.frame, text='Refugees evacuated: 0')
@@ -255,6 +263,17 @@ def update_browser_source(event = None) -> None:
 
 def cmdr_data(data: CAPIData, is_beta: bool) -> Optional[str]:
     return ''
+
+def version_tuple(version):
+    """
+    Parse the plugin version number into a tuple
+    """
+    try:
+        version = version.replace('v', '')
+        ret = tuple(map(int, version.split(".")))
+    except:
+        ret = (0,)
+    return ret
 
 def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, any]) -> None:
     if is_beta == True:
