@@ -290,6 +290,8 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
         return
 
     if entry["event"] == "Docked":
+        this.current_star_system_name = entry["StarSystem"]
+        this.current_star_system_address = entry["SystemAddress"] 
         this.current_station = entry["StationName"]
         this.current_station_market_id = entry["MarketID"]
         return
@@ -306,8 +308,13 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
             this.current_station = "Deep Space"
             this.current_station_market_id = 1
         return
+
+    if entry["event"] == "ApproachBody":
+        this.current_star_system_name = entry["StarSystem"]
+        this.current_star_system_address = entry["SystemAddress"] 
     
     if entry["event"] == "ApproachSettlement":
+        this.current_star_system_address = entry["SystemAddress"]
         this.current_station = entry["Name"]
         this.current_Station_market_id = entry["MarketID"]
         return
