@@ -1,4 +1,4 @@
-from threading import Thread
+from threading import Thread, Timer
 from queue import Queue
 import logging
 import os.path
@@ -6,23 +6,23 @@ import sys
 import tkinter as tk
 import logging
 import plug
-import monitor
+from monitor import monitor
+from companion import CAPIData, SERVER_LIVE
 from tkinter import ttk
 from typing import TYPE_CHECKING, Any, List, Dict, Mapping, MutableMapping, Optional, Tuple
 
 import myNotebook as nb
 from requests import Response, Session
-from config import appname, user_agent
+from config import appname, user_agent, config
 
 if TYPE_CHECKING:
     def _(x: str) -> str:
         return x
 
 this = sys.modules[__name__] 
-this.base_url : str = "https://api.cia-gaming.de/v1/thargoid-war"
-this.version : str = "0.0.5"
-this.api_key : str = ""
-this.commander_id : str = ""
+this.base_url : str = "https://twt.cia-gaming.de/api/v2"
+this.version : str = "0.1.0"
+this.cmdr_name : str = None
 this.browsersource_url : tk.StringVar = tk.StringVar(master=None, value="placeholder")
 this.mission_list : List[str] = [
  "Mission_TW_Rescue_Alert", "Mission_TW_Rescue_UnderAttack",
@@ -35,15 +35,23 @@ this.mission_list : List[str] = [
 
 # state
 this.last_cmdr_lookup : Any = None
+this.last_cmdractivtiy_lookup : Any = None
 this.last_cmdrhistory_lookup : Any = None
 
 this.current_star_system_name : str = None
 this.current_star_system_address : int = None
 this.current_station: str = None
+this.current_station_market_id : str = None
+
+#config
+this.apikey : str = None
 
 # UI elements
     # Preferences
 this.browsersource_url_entry : nb.Entry = None
+this.apikey_entry : nb.Entry = None
+this.browsersource_url_tk : tk.StringVar = tk.StringVar(master=None, value="")
+this.apikey_tk : tk.StringVar = tk.StringVar(master=None, value="")
 
     # Main Window
 this.goidkills_label : tk.Label = None
@@ -53,16 +61,17 @@ this.emergencysupplies_label : tk.Label = None
 this.recoverysupplies_label : tk.Label = None
 
 # internals
+this.initialization_type : str = "INITIALIZATION"
 this.getcmdr_type : str = "GET_CMDR"
+this.getcmdractivity_type : str = "GET_CMDR_ACTIVITY"
 this.getcmdrhistory_type : str = "GET_CMDR_HISTORY"
-this.recordactivity_type : str = "RECORD_ACTIVITY"
+this.recordactivity_type : str = "TRACK_ACTIVITY"
 
 this.is_initialized = False
 this.shutting_down : bool = False
 
 this.session: Session = Session()
 this.session.headers['User-Agent'] = user_agent
-this.session.headers['Authorization'] = this.api_key
 
 this.queue : Queue = Queue()
 this.thread : Optional[Thread] = None
@@ -92,6 +101,9 @@ def plugin_start3(plugin_dir: str) -> str:
     this.thread.daemon = True
     this.thread.start()
 
+    timer = Timer(1.0, check_cmdr_name)
+    timer.start()
+
     return "Thargoid War Tracker v" + this.version
 
 def plugin_stop() -> None:
@@ -120,15 +132,23 @@ def plugin_prefs(parent: tk.Tk, cmdr: str, is_beta: bool) -> tk.Frame:
     :return: An instance of `myNotebook.Frame`.
     """
 
+    this.cmdr_name = cmdr
+    this.apikey = config.get_str(f'twt_{cmdr}_apikey')
+
     frame = nb.Frame(parent)
     # Make the second column fill available space
     frame.columnconfigure(1, weight=1)
 
-    nb.Label(frame, text="Browser Source").grid(padx=10, sticky=tk.W)
-    ttk.Separator(frame, orient=tk.HORIZONTAL).grid(columnspan=2, padx=10, pady=2, sticky=tk.EW)
-    nb.Label(frame, text="You can use this browser source to show your statistics through OBS while streaming").grid(padx=10, columnspan=2, sticky=tk.W)
-    nb.Label(frame, text="Your Browser Source URL:").grid(column=0, padx=10, sticky=tk.W, row=4)
-    this.browsersource_url_entry = nb.Entry(frame, textvariable=this.browsersource_url, state="readonly").grid(column=1, padx=10, pady=2, sticky=tk.EW, row=4)
+    nb.Label(frame, text="API Key").grid(padx=10, sticky=tk.W)
+    ttk.Separator(frame, orient=tk.HORIZONTAL).grid(columnspan=2, padx=10, pady=2, sticky=tk.EW, row=2)
+    nb.Label(frame, text="Paste the API Key you got from your profile page from https://twt.cia-gaming.de here").grid(padx=10, columnspan=2, sticky=tk.W)
+    nb.Label(frame, text="Your API Key:").grid(column=0, padx=10, sticky=tk.W, row=4)
+    this.apikey_entry = nb.Entry(frame, textvariable=this.apikey_tk).grid(column=1, padx=10, pady=2, sticky=tk.EW, row=4)
+    nb.Label(frame, text="Browser Source").grid(padx=10, sticky=tk.W, row=7)
+    ttk.Separator(frame, orient=tk.HORIZONTAL).grid(columnspan=2, padx=10, pady=2, sticky=tk.EW, row=8)
+    nb.Label(frame, text="You can use this browser source to show your statistics through OBS while streaming").grid(padx=10, columnspan=2, sticky=tk.W, row=9)
+    nb.Label(frame, text="Your Browser Source URL:").grid(column=0, padx=10, sticky=tk.W, row=9)
+    this.browsersource_url_entry = nb.Entry(frame, textvariable=this.browsersource_url_tk, state="readonly").grid(column=1, padx=10, pady=2, sticky=tk.EW, row=10)
 
     return frame
 
@@ -138,12 +158,14 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
     :param parent: The tk parent to place our widgets into.
     :return: See PLUGINS.md#display
     """
+
     this.frame = tk.Frame(parent)
     this.frame.columnconfigure(1, weight=1)
-    this.frame.bind_all("<<GetCMDR>>", update_war_data)
-    this.frame.bind_all("<<RecordedActivity>>", fetch_cmdr)
-    Title = tk.Label(
-    this.frame, text=f'Thargoid War Tracker v{this.version}')
+    this.frame.bind_all("<<Initialization>>", initialize)
+    this.frame.bind_all("<<GetCMDR>>", update_browser_source)
+    this.frame.bind_all("<<GetCMDRActivity>>", update_war_data)
+    this.frame.bind_all("<<RecordedActivity>>", fetch_cmdr_activity)
+    Title = tk.Label(this.frame, text=f'Thargoid War Tracker v{this.version}')
     Title.grid(row=0, column=0, sticky=tk.W)
     this.goidkills_label = tk.Label(this.frame, text='Thargoids killed: 0')
     this.goidkills_label.grid(row=1, column=0, sticky=tk.W)
@@ -155,125 +177,216 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
     this.emergencysupplies_label.grid(row=4, column=0, sticky=tk.W)
     this.recoverysupplies_label = tk.Label(this.frame, text='Recovery supplies delivered: 0')
     this.recoverysupplies_label.grid(row=5, column=0, sticky=tk.W)
-    tk.Button(this.frame, text='Details', command=update_war_data).grid(row=1, column=1, padx=8)
-    tk.Button(this.frame, text='Previous Tick', command=update_war_data).grid(row=3, column=1, padx=8)
-
-    params : Dict =  { 'id': this.commander_id }
-    this.queue.put((this.getcmdr_type, params))
+    #tk.Button(this.frame, text='Details', command=update_war_data).grid(row=1, column=1, padx=8)
+    #tk.Button(this.frame, text='Previous Tick', command=update_war_data).grid(row=3, column=1, padx=8)
 
     return this.frame
 
-def fetch_cmdr(event = None) -> None:
-    params : Dict =  { 'id': this.commander_id }
-    this.queue.put((this.getcmdr_type, params))
+def prefs_changed(cmdr: str, is_beta: bool) -> None:
+    """
+    Handle any changes to Settings once the dialog is closed.
+    :param cmdr: Name of Commander.
+    :param is_beta: Whether game beta was detected.
+    """
+
+    if is_beta == True:
+        return
+
+    config.set(f'twt_{cmdr}_apikey', this.apikey_tk.get().strip())
+    this.apikey = this.apikey_tk.get().strip()
+
+    this.session.headers['Authorization'] = this.apikey
+
+    params: Dict = { }
+    this.queue.put((this.initialization_type, params))
+
+def check_cmdr_name():
+    this.cmdr_name = monitor.cmdr
+
+    if this.cmdr_name is None:
+        timer = Timer(1.0, check_cmdr_name)
+        timer.start()
+        return
+
+    this.apikey = config.get_str(f'twt_{this.cmdr_name}_apikey')
+    this.apikey_tk.set(this.apikey)
+    this.session.headers['Authorization'] = this.apikey
+
+    if this.is_initialized == False and this.apikey is not None:
+        params: Dict = { }
+        this.queue.put((this.initialization_type, params))
+
+def initialize(event = None) -> None:
+    update_browser_source(event)
+    update_war_data(event)
+    
+    this.is_initialized = True
+
+def fetch_cmdr_activity(event = None) -> None:
+    params : Dict = { }
+    this.queue.put((this.getcmdractivity_type, params))
 
 def update_war_data(event = None) -> None:
-        if this.last_cmdr_lookup: 
-            this.goidkills_label.config(text=f'Thargoids killed: {this.last_cmdr_lookup["commander"]["activityStatistics"]["thargoidsDestroyed"]}')
-            this.refugees_label.config(text=f'Refugees evacuated: {this.last_cmdr_lookup["commander"]["activityStatistics"]["refugeesEvacuated"]}')
-            this.wounded_label.config(text=f'Wounded rescued: {this.last_cmdr_lookup["commander"]["activityStatistics"]["woundedRescued"]}')
-            this.emergencysupplies_label.config(text=f'Emergency supplies delivered: {this.last_cmdr_lookup["commander"]["activityStatistics"]["emergencySuppliesDelivered"]}')
-            this.recoverysupplies_label.config(text=f'Recovery supplies delivered: {this.last_cmdr_lookup["commander"]["activityStatistics"]["recoverySuppliesDelivered"]}')
-            update_browser_source(event)
+        if this.last_cmdractivity_lookup: 
+            this.goidkills_label.config(text=f'Thargoids killed: {this.last_cmdractivity_lookup["activityStatistic"]["overallThargoidKills"]}')
+            this.refugees_label.config(text=f'Refugees rescued: {this.last_cmdractivity_lookup["activityStatistic"]["overallRefugeesRescued"]}')
+            this.wounded_label.config(text=f'Wounded evacuated: {this.last_cmdractivity_lookup["activityStatistic"]["overallWoundedEvacuated"]}')
+            this.emergencysupplies_label.config(text=f'Emergency supplies delivered: {this.last_cmdractivity_lookup["activityStatistic"]["overallEmergencySuppliesDelivered"]}')
+            this.recoverysupplies_label.config(text=f'Recovery supplies delivered: {this.last_cmdractivity_lookup["activityStatistic"]["overallRecoverySuppliesDelivered"]}')
 
 def update_browser_source(event = None) -> None:
         if this.last_cmdr_lookup:
-            this.browsersource_url.set(this.last_cmdr_lookup["commander"]["browserSourceUrl"])
+            this.browsersource_url_tk.set(this.last_cmdr_lookup["browserSourceUrl"])
+
+def cmdr_data(data: CAPIData, is_beta: bool) -> Optional[str]:
+    if data.source_host != SERVER_LIVE:
+        return
+
+    if this.current_star_system_name is None and this.current_star_system_address is None and this.current_station is None and this.current_station_market_id is None:
+        this.current_star_system_name = data["lastSystem"]["name"]
+        this.current_star_system_address = data["ship"]["starsystem"]["systemaddress"]
+
+        this.current_station = data["lastStarport"]["name"]
+        this.current_station_market_id = data["lastStarport"]["id"]
+
+    return ''
 
 def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, any]) -> None:
     if is_beta == True:
         return
 
+    if this.is_initialized == False:
+        return
+
+    this.cmdr_name = cmdr
+
     if entry["event"] == "Location":
-        logger.debug(f'FID: {state["FID"]}')
         this.current_star_system_name = entry["StarSystem"]
         this.current_star_system_address = entry["SystemAddress"]
         if entry["Docked"] == True:
             this.current_station = entry["StationName"]
+            this.current_station_market_id = entry["MarketID"]
+        else:
+            this.current_station = entry["StationName"] if "StationName" in entry else "Deep Space"
+            this.current_station_market_id = 0 if "StationName" in entry else 1
         return
 
     if entry["event"] == "FSDJump":
-        logger.debug(f'FID: {state["FID"]}')
         this.current_star_system_name = entry["StarSystem"]       
         this.current_star_system_address = entry["SystemAddress"] 
+        this.current_station = "Deep Space"
+        this.current_station_market_id = 1
         return
 
     if entry["event"] == "CarrierJump":
-        logger.debug(f'FID: {state["FID"]}')
         this.current_star_system_name = entry["StarSystem"]
         this.current_star_system_address = entry["SystemAddress"] 
         if entry["Docked"] == True:
             this.current_station = entry["StationName"]
+            this.current_station_market_id = entry["MarketID"]
+        else:
+            this.current_station = entry["StationName"] if "StationName" in entry else "Deep Space"
+            this.current_station_market_id = 0 if "StationName" in entry else 1
         return
 
     if entry["event"] == "Docked":
         this.current_station = entry["StationName"]
+        this.current_station_market_id = entry["MarketID"]
         return
 
+    if entry["event"] == "SupercruiseEntry":
+        this.current_station = "Deep Space"
+        this.current_station_market_id = 1
+
     if entry["event"] == "SupercruiseExit":
-        logger.debug(f'FID: {state["FID"]}')
         if entry["BodyType"] == "Station":
             this.current_station = entry["Body"]
+            this.current_station_market_id = 0
+        else:
+            this.current_station = "Deep Space"
+            this.current_station_market_id = 1
         return
     
     if entry["event"] == "ApproachSettlement":
-        logger.debug(f'FID: {state["FID"]}')
         this.current_station = entry["Name"]
+        this.current_Station_market_id = entry["MarketID"]
+        return
+
+    if this.apikey is None:
         return
 
     if entry["event"] == "FactionKillBond":
         if entry["VictimFaction"] == "$faction_Thargoid;":
-            logger.debug(f'FID: {state["FID"]}')
-            body : Dict = { "commanderId": this.commander_id, "type": "FactionKillBond", "bondTargetFaction": entry["VictimFaction"] }
+            body : Dict = { 
+                "type": "FactionKillBond",
+                "targetFaction": entry["VictimFaction"],
+                "starSystemName": this.current_star_system_name, 
+                "starSystemId64":  this.current_star_system_address,
+                "stationName": this.current_station,
+                "stationMarketId64": this.current_station_market_id 
+            }
             this.queue.put((this.recordactivity_type, body))
             return
     
     if entry["event"] == "MissionAccepted":
         if str(entry["Name"]).startswith(tuple(this.mission_list)):
-            logger.debug(f'FID: {state["FID"]}')
             body : Dict = { 
-                "commanderId": this.commander_id, 
                 "type": "MissionAccepted",
-                 "missions": [
-                    {
-                        "id": entry["MissionID"], 
-                        "type": entry["Name"],
-                        "count": entry["PassengerCount"] if "PassengerCount" in entry else entry["Count"]
-                    } 
-                ]
+                "mission": {
+                    "id": entry["MissionID"], 
+                    "type": entry["Name"],
+                    "expiresAt": entry["Expiry"],
+                    "count": entry["PassengerCount"] if "PassengerCount" in entry else entry["Count"]
+                },
+                "starSystemName": this.current_star_system_name, 
+                "starSystemId64":  this.current_star_system_address,
+                "stationName": this.current_station,
+                "stationMarketId64": this.current_station_market_id                  
             }
             this.queue.put((this.recordactivity_type, body))
             return
     
     if entry["event"] == "MissionCompleted":
-        if str(entry["Name"]).startswith(tuple(this.mission_list)):
-            logger.debug(f'CMDR: {cmdr} - FID: {state["FID"]}')            
+        if str(entry["Name"]).startswith(tuple(this.mission_list)):         
             body : Dict = { 
-                "commanderId": this.commander_id, 
                 "type": "MissionCompleted",
-                "missionId": entry["MissionID"]
+                "mission": {
+                    "id": entry["MissionID"],
+                },
+                "starSystemName": this.current_star_system_name, 
+                "starSystemId64":  this.current_star_system_address,
+                "stationName": this.current_station,
+                "stationMarketId64": this.current_station_market_id
             }
             this.queue.put((this.recordactivity_type, body))
             return
 
     if entry["event"] == "MissionFailed":
         if str(entry["Name"]).startswith(tuple(this.mission_list)):
-            logger.debug(f'FID: {state["FID"]}')
             body = { 
-                "commanderId": this.commander_id, 
                 "type": "MissionFailed",
-                "missionId": entry["MissionID"]
+                "mission": {
+                    "id": entry["MissionID"]
+                },
+                "starSystemName": this.current_star_system_name, 
+                "starSystemId64":  this.current_star_system_address,
+                "stationName": this.current_station,
+                "stationMarketId64": this.current_station_market_id
             }
             this.queue.put((this.recordactivity_type, body))
             return
 
     if entry["event"] == "MissionAbandoned":
         if str(entry["Name"]).startswith(tuple(this.mission_list)):
-            logger.debug(f'FID: {state["FID"]}')
-            body = { 
-                "commanderId": this.commander_id, 
+            body = {
                 "type": "MissionAbandoned",
-                "missionId": entry["MissionID"]
+                "mission": {
+                    "id": entry["MissionID"]
+                },
+                "starSystemName": this.current_star_system_name, 
+                "starSystemId64":  this.current_star_system_address,
+                "stationName": this.current_station,
+                "stationMarketId64": this.current_station_market_id
             }
             this.queue.put((this.recordactivity_type, body))
             return
@@ -311,21 +424,37 @@ def worker() -> None:
         retrying = 0
         while retrying < 3:
             try:
+                if type == this.initialization_type:
+                    responseCmdr : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}')
+                    responseCmdr.raise_for_status()
+                    this.last_cmdr_lookup = responseCmdr.json()
+                    responseActivity : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}/activity')
+                    responseActivity.raise_for_status()
+                    this.last_cmdractivity_lookup = responseActivity.json()
+                    responseHistory : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}/history')
+                    responseHistory.raise_for_status()
+                    this.last_cmdrhistory_lookup = responseHistory.json()
+                    this.frame.event_generate("<<Initialization>>", when="tail")
                 if type == this.getcmdr_type:
-                    response : Response = this.session.get(f'{this.base_url}/commander', params=params)
+                    response : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}')
                     response.raise_for_status()
                     this.last_cmdr_lookup = response.json()
                     this.frame.event_generate("<<GetCMDR>>", when="tail")
+                if type == this.getcmdractivity_type:
+                    response : Response = this.session.get(f'{this.base_url}/commanders/{this.this.cmdr_name}/activity')
+                    response.raise_for_status()
+                    this.last_cmdr_lookup = response.json()
+                    this.frame.event_generate("<<GetCMDRActivity>>", when="tail")
                 elif type == this.getcmdrhistory_type: 
-                    response : Response = this.session.get(f'{this.base_url}/commander/history', params=params)
+                    response : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}/history')
                     response.raise_for_status()
                     this.last_cmdrhistory_lookup = response.json()
                     #this.frame.event_generate("<<GetCMDRHistory>>", when="tail")
                 elif type == this.recordactivity_type:
-                    if not monitor.monitor.is_live_galaxy():
+                    if not monitor.is_live_galaxy():
                         logger.error("TWT only supports the live galaxy")
                         break                    
-                    response : Response = this.session.post(f'{this.base_url}/activity', json=params)
+                    response : Response = this.session.post(f'{this.base_url}/commanders/{this.cmdr_name}/activity', json=params)
                     response.raise_for_status()
                     this.frame.event_generate("<<RecordedActivity>>", when="tail")
 
