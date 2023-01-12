@@ -242,11 +242,16 @@ def cmdr_data(data: CAPIData, is_beta: bool) -> Optional[str]:
     if data.source_host != SERVER_LIVE:
         return
 
-    if this.current_star_system_name is None and this.current_star_system_address is None and this.current_station is None and this.current_station_market_id is None:
+    if this.current_star_system_name is None:
         this.current_star_system_name = data["lastSystem"]["name"]
-        this.current_star_system_address = data["ship"]["starsystem"]["systemaddress"]
 
+    if this.current_star_system_address is None: 
+        this.current_star_system_address = data["lastSystem"]["id"]
+
+    if this.current_station is None:
         this.current_station = data["lastStarport"]["name"]
+    
+    if this.current_station_market_id is None:
         this.current_station_market_id = data["lastStarport"]["id"]
 
     return ''
@@ -450,7 +455,7 @@ def worker() -> None:
                 if type == this.getcmdractivity_type:
                     response : Response = this.session.get(f'{this.base_url}/commanders/{this.this.cmdr_name}/activity')
                     response.raise_for_status()
-                    this.last_cmdr_lookup = response.json()
+                    this.last_cmdractivity_lookup = response.json()
                     this.frame.event_generate("<<GetCMDRActivity>>", when="tail")
                 elif type == this.getcmdrhistory_type: 
                     response : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}/history')
