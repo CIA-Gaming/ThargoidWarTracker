@@ -39,9 +39,9 @@ this.last_cmdractivtiy_lookup : Any = None
 this.last_cmdrhistory_lookup : Any = None
 
 this.current_star_system_name : str = None
-this.current_star_system_address : int = None
+this.current_star_system_address : str = None
 this.current_station: str = None
-this.current_station_market_id : int = None
+this.current_station_market_id : str = None
 
 #config
 this.apikey : str = None
@@ -218,9 +218,9 @@ def check_cmdr_name():
     this.session.headers['Authorization'] = this.apikey
 
     this.current_star_system_name = config.get_str(f'twt_{this.cmdr_name}_lastSystemName')
-    this.current_star_system_address = config.get_int(f'twt_{this.cmdr_name}_lastSystemAddress')
+    this.current_star_system_address = config.get_str(f'twt_{this.cmdr_name}_lastSystemAddress')
     this.current_station = config.get_str(f'twt_{this.cmdr_name}_lastStationName')
-    this.current_station_market_id = config.get_int(f'twt_{this.cmdr_name}_lastStationMarketId')
+    this.current_station_market_id = config.get_str(f'twt_{this.cmdr_name}_lastStationMarketId')
 
     logger.debug(this.current_star_system_name)
     logger.debug(this.current_star_system_address)
@@ -254,21 +254,6 @@ def update_browser_source(event = None) -> None:
             this.browsersource_url_tk.set(this.last_cmdr_lookup["browserSourceUrl"])
 
 def cmdr_data(data: CAPIData, is_beta: bool) -> Optional[str]:
-    if data.source_host != SERVER_LIVE:
-        return
-
-    if this.current_star_system_name is None:
-        this.current_star_system_name = data["lastSystem"]["name"]
-
-    if this.current_star_system_address is None: 
-        this.current_star_system_address = data["lastSystem"]["id"]
-
-    if this.current_station is None:
-        this.current_station = data["lastStarport"]["name"]
-    
-    if this.current_station_market_id is None:
-        this.current_station_market_id = data["lastStarport"]["id"]
-
     return ''
 
 def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: MutableMapping[str, Any], state: Mapping[str, any]) -> None:
@@ -282,61 +267,61 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
 
     if entry["event"] == "Location":
         this.current_star_system_name = entry["StarSystem"]
-        this.current_star_system_address = entry["SystemAddress"]
+        this.current_star_system_address = str(entry["SystemAddress"])
         if entry["Docked"] == True:
             this.current_station = entry["StationName"]
-            this.current_station_market_id = entry["MarketID"]
+            this.current_station_market_id = str(entry["MarketID"])
         else:
             this.current_station = entry["StationName"] if "StationName" in entry else "Deep Space"
-            this.current_station_market_id = 0 if "StationName" in entry else 1
+            this.current_station_market_id = str(0 if "StationName" in entry else 1)
         return
 
     if entry["event"] == "FSDJump":
         this.current_star_system_name = entry["StarSystem"]       
-        this.current_star_system_address = entry["SystemAddress"] 
+        this.current_star_system_address = str(entry["SystemAddress"])
         this.current_station = "Deep Space"
-        this.current_station_market_id = 1
+        this.current_station_market_id = str(1)
         return
 
     if entry["event"] == "CarrierJump":
         this.current_star_system_name = entry["StarSystem"]
-        this.current_star_system_address = entry["SystemAddress"] 
+        this.current_star_system_address = str(entry["SystemAddress"])
         if entry["Docked"] == True:
             this.current_station = entry["StationName"]
-            this.current_station_market_id = entry["MarketID"]
+            this.current_station_market_id = str(entry["MarketID"])
         else:
             this.current_station = entry["StationName"] if "StationName" in entry else "Deep Space"
-            this.current_station_market_id = 0 if "StationName" in entry else 1
+            this.current_station_market_id = str(0 if "StationName" in entry else 1)
         return
 
     if entry["event"] == "Docked":
         this.current_star_system_name = entry["StarSystem"]
-        this.current_star_system_address = entry["SystemAddress"] 
+        this.current_star_system_address = str(entry["SystemAddress"])
         this.current_station = entry["StationName"]
-        this.current_station_market_id = entry["MarketID"]
+        this.current_station_market_id = str(entry["MarketID"])
         return
 
     if entry["event"] == "SupercruiseEntry":
         this.current_station = "Deep Space"
-        this.current_station_market_id = 1
+        this.current_station_market_id = str(1)
 
     if entry["event"] == "SupercruiseExit":
         if entry["BodyType"] == "Station":
             this.current_station = entry["Body"]
-            this.current_station_market_id = 0
+            this.current_station_market_id = str(0)
         else:
             this.current_station = "Deep Space"
-            this.current_station_market_id = 1
+            this.current_station_market_id = str(1)
         return
 
     if entry["event"] == "ApproachBody":
         this.current_star_system_name = entry["StarSystem"]
-        this.current_star_system_address = entry["SystemAddress"] 
+        this.current_star_system_address = str(entry["SystemAddress"]) 
     
     if entry["event"] == "ApproachSettlement":
-        this.current_star_system_address = entry["SystemAddress"]
+        this.current_star_system_address = str(entry["SystemAddress"])
         this.current_station = entry["Name"]
-        this.current_Station_market_id = entry["MarketID"]
+        this.current_Station_market_id = str(entry["MarketID"])
         return
 
     if this.apikey is None:
