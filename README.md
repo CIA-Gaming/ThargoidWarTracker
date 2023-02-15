@@ -1,5 +1,3 @@
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/M4M3IRXZV)
-
 # ThargoidWarTracker
 A plugin for Elite Dangerous Market Connector that tracks activity in the thargoid war.
 
@@ -17,3 +15,5 @@ A plugin for Elite Dangerous Market Connector that tracks activity in the thargo
 6. Copy said API key into the appropiate field in the plugin settings in EDMC
 
 That's it you're all set. Happy hunting Commander
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/M4M3IRXZV)
