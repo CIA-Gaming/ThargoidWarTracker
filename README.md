@@ -1,3 +1,5 @@
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/M4M3IRXZV)
+
 # ThargoidWarTracker
 A plugin for Elite Dangerous Market Connector that tracks activity in the thargoid war.
 
