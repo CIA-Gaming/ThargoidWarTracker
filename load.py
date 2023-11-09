@@ -22,17 +22,20 @@ if TYPE_CHECKING:
 
 this = sys.modules[__name__] 
 this.base_url : str = "https://twt.cia-gaming.de/api/v2"
-this.version : str = "0.1.1"
+this.version : str = "0.1.2"
 this.git_version: str = None
 this.cmdr_name : str = None
 this.browsersource_url : tk.StringVar = tk.StringVar(master=None, value="placeholder")
 this.mission_list : List[str] = [
- "Mission_TW_Rescue_Alert", "Mission_TW_Rescue_UnderAttack",
- "Mission_TW_Rescue_Burning","Mission_TW_PassengerEvacuation_Alert",
- "Mission_TW_PassengerEvacuation_UnderAttack", "Mission_TW_PassengerEvacuation_Burning",
- "Mission_TW_CollectWing_Repairing", "Mission_TW_Collect_Recovery",
- "Mission_TW_CollectWing_Alert", "Mission_TW_Collect_Alert",
- "Mission_TW_CollectWing_UnderAttack", "Mission_TW_Collect_UnderAttack"
+ "Mission_TW_Rescue_Alert", "Mission_TW_PassengerEvacuation_Alert",
+ "Mission_TW_RefugeeBulk", "Mission_TW_Rescue_UnderAttack",
+ "Mission_TW_PassengerEvacuation_UnderAttack", "Mission_TW_Rescue_Burning",
+ "Mission_TW_PassengerEvacuation_Burning",
+ "Mission_TW_Collect_Alert", "Mission_TW_CollectWing_Alert",
+ "Mission_TW_Collect_Repairing", "Mission_TW_CollectWing_Repairing",
+ "Mission_TW_Collect_Recovery", "Mission_TW_CollectWing_Recovery",
+ "Mission_TW_Collect_UnderAttack", "Mission_TW_CollectWing_UnderAttack",
+ "Mission_TW_OnFoot_Reboot_NR", "Mission_OnFoot_Reboot_MB"
 ]
 
 # state
