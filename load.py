@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 this = sys.modules[__name__] 
 this.base_url : str = "https://twt.cia-gaming.de/api/v2"
-this.version : str = "0.1.2"
+this.version : str = "0.1.3"
 this.git_version: str = None
 this.cmdr_name : str = None
 this.browsersource_url : tk.StringVar = tk.StringVar(master=None, value="placeholder")
@@ -357,7 +357,8 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
                 "starSystemName": this.current_star_system_name, 
                 "starSystemId64":  this.current_star_system_address,
                 "stationName": this.current_station,
-                "stationMarketId64": this.current_station_market_id 
+                "stationMarketId64": this.current_station_market_id,
+                "boundsAmount": entry["Reward"]
             }
             this.queue.put((this.recordactivity_type, body))
             return
