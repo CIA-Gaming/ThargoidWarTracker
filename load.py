@@ -11,6 +11,7 @@ from companion import CAPIData
 from tkinter import ttk
 from ttkHyperlinkLabel import HyperlinkLabel
 from typing import TYPE_CHECKING, Any, List, Dict, Mapping, MutableMapping, Optional, Tuple
+import urllib.parse
 
 import myNotebook as nb
 from requests import Response, Session
@@ -459,29 +460,30 @@ def worker() -> None:
         retrying = 0
         while retrying < 3:
             try:
+                sanitized_commander_name: str = urllib.parse.quote(this.cmdr_name)
                 if type == this.initialization_type:
-                    responseCmdr : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}')
+                    responseCmdr : Response = this.session.get(f'{this.base_url}/commanders/{sanitized_commander_name}')
                     responseCmdr.raise_for_status()
                     this.last_cmdr_lookup = responseCmdr.json()
-                    responseActivity : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}/activity')
+                    responseActivity : Response = this.session.get(f'{this.base_url}/commanders/{sanitized_commander_name}/activity')
                     responseActivity.raise_for_status()
                     this.last_cmdractivity_lookup = responseActivity.json()
-                    responseHistory : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}/history')
+                    responseHistory : Response = this.session.get(f'{this.base_url}/commanders/{sanitized_commander_name}/history')
                     responseHistory.raise_for_status()
                     this.last_cmdrhistory_lookup = responseHistory.json()
                     this.frame.event_generate("<<Initialization>>", when="tail")
                 if type == this.getcmdr_type:
-                    response : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}')
+                    response : Response = this.session.get(f'{this.base_url}/commanders/{sanitized_commander_name}')
                     response.raise_for_status()
                     this.last_cmdr_lookup = response.json()
                     this.frame.event_generate("<<GetCMDR>>", when="tail")
                 if type == this.getcmdractivity_type:
-                    response : Response = this.session.get(f'{this.base_url}/commanders/{this.this.cmdr_name}/activity')
+                    response : Response = this.session.get(f'{this.base_url}/commanders/{sanitized_commander_name}/activity')
                     response.raise_for_status()
                     this.last_cmdractivity_lookup = response.json()
                     this.frame.event_generate("<<GetCMDRActivity>>", when="tail")
                 elif type == this.getcmdrhistory_type: 
-                    response : Response = this.session.get(f'{this.base_url}/commanders/{this.cmdr_name}/history')
+                    response : Response = this.session.get(f'{this.base_url}/commanders/{sanitized_commander_name}/history')
                     response.raise_for_status()
                     this.last_cmdrhistory_lookup = response.json()
                     #this.frame.event_generate("<<GetCMDRHistory>>", when="tail")
@@ -489,7 +491,7 @@ def worker() -> None:
                     if not monitor.is_live_galaxy():
                         logger.error("TWT only supports the live galaxy")
                         break                    
-                    response : Response = this.session.post(f'{this.base_url}/commanders/{this.cmdr_name}/activity', json=params)
+                    response : Response = this.session.post(f'{this.base_url}/commanders/{sanitized_commander_name}/activity', json=params)
                     response.raise_for_status()
                     this.frame.event_generate("<<RecordedActivity>>", when="tail")
 
