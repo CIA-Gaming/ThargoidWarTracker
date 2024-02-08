@@ -458,7 +458,7 @@ def worker() -> None:
             return
 
         retrying = 0
-        while retrying < 3:
+        while retrying < 5:
             try:
                 sanitized_commander_name: str = urllib.parse.quote(this.cmdr_name)
                 if type == this.initialization_type:
