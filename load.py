@@ -203,8 +203,12 @@ def plugin_app(parent: tk.Tk) -> tk.Frame:
     this.emergencysupplies_label.grid(row=4, column=0, sticky=tk.W)
     this.recoverysupplies_label = tk.Label(this.frame, text='Recovery supplies delivered: 0')
     this.recoverysupplies_label.grid(row=5, column=0, sticky=tk.W)
-    #tk.Button(this.frame, text='Details', command=update_war_data).grid(row=1, column=1, padx=8)
-    #tk.Button(this.frame, text='Previous Tick', command=update_war_data).grid(row=3, column=1, padx=8)
+    this.settlementsrebooted_label = tk.Label(this.frame, text='Settlements rebooted: 0')
+    this.settlementsrebooted_label.grid(row=6, column=0, sticky=tk.W)
+    this.searchandrescue_label = tk.Label(this.frame, text='Search and Rescues: 0')
+    this.searchandrescue_label.grid(row=7, column=0, sticky=tk.W)
+    this.tissuesamples_label = tk.Label(this.frame, text='Tissue samples collected: 0')
+    this.tissuesamples_label.grid(row=8, column=0, sticky=tk.W)
 
     return this.frame
 
@@ -269,6 +273,9 @@ def update_war_data(event = None) -> None:
             this.wounded_label.config(text=f'Wounded evacuated: {this.last_cmdractivity_lookup["activityStatistic"]["overallWoundedEvacuated"]}')
             this.emergencysupplies_label.config(text=f'Emergency supplies delivered: {this.last_cmdractivity_lookup["activityStatistic"]["overallEmergencySuppliesDelivered"]}')
             this.recoverysupplies_label.config(text=f'Recovery supplies delivered: {this.last_cmdractivity_lookup["activityStatistic"]["overallRecoverySuppliesDelivered"]}')
+            this.settlementsrebooted_label.config(text=f'Settlements rebooted: {this.last_cmdractivity_lookup["activityStatistic"]["overallSettlementsRebooted"]}')
+            this.searchandrescue_label.config(text=f'Search and Rescues: {this.last_cmdractivity_lookup["activityStatistic"]["overallSearchAndRescues"]}')
+            this.tissuesamples_label.config(text=f'Tissue samples collected: {this.last_cmdractivity_lookup["activityStatistic"]["overallTissueSamplesCollected"]}')
 
 def update_browser_source(event = None) -> None:
         if this.last_cmdr_lookup:
