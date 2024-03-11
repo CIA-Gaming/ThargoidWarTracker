@@ -39,6 +39,15 @@ this.mission_list : List[str] = [
  "Mission_TW_OnFoot_Reboot_NR", "Mission_TW_OnFoot_Reboot_MB"
 ]
 
+this.cargo_list : List[str] = [
+ "DamagedEscapePod",
+ "OccupiedCryoPod",
+ "ThargoidPod",
+ "USSCargoBlackBox",
+ "ThargoidTissueSample",
+ "ThargoidScoutTissueSample"
+]
+
 # state
 this.last_cmdr_lookup : Any = None
 this.last_cmdractivtiy_lookup : Any = None
@@ -418,6 +427,21 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
                 "type": "MissionAbandoned",
                 "mission": {
                     "id": entry["MissionID"]
+                },
+                "starSystemName": this.current_star_system_name, 
+                "starSystemId64":  this.current_star_system_address,
+                "stationName": this.current_station,
+                "stationMarketId64": this.current_station_market_id
+            }
+            this.queue.put((this.recordactivity_type, body))
+            return
+        
+    if entry["event"] == "CollectCargo":
+        if str(entry["Type"].startsWith(tuple(this.cargo_list))):
+            body = {
+                "type": "CollectCargo",
+                "cargo": {
+                    "type": entry["Type"]
                 },
                 "starSystemName": this.current_star_system_name, 
                 "starSystemId64":  this.current_star_system_address,
