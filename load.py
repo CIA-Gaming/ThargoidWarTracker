@@ -444,7 +444,7 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
             return
         
     if entry["event"] == "CollectCargo":
-        if str(entry["Type"].startsWith(tuple(this.cargo_list))):
+        if str(entry["Type"]).startsWith(tuple(this.cargo_list)):
             body = {
                 "type": "CollectCargo",
                 "cargo": {
