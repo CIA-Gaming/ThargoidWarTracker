@@ -274,7 +274,7 @@ def update_war_data(event = None) -> None:
             this.emergencysupplies_label.config(text=f'Emergency supplies delivered: {this.last_cmdractivity_lookup["activityStatistic"]["overallEmergencySuppliesDelivered"]}')
             this.recoverysupplies_label.config(text=f'Recovery supplies delivered: {this.last_cmdractivity_lookup["activityStatistic"]["overallRecoverySuppliesDelivered"]}')
             this.settlementsrebooted_label.config(text=f'Settlements rebooted: {this.last_cmdractivity_lookup["activityStatistic"]["overallSettlementsRebooted"]}')
-            this.searchandrescue_label.config(text=f'Search and Rescues: {this.last_cmdractivity_lookup["activityStatistic"]["overallSearchAndRescues"]}')
+            this.searchandrescue_label.config(text=f'Search and Rescues: {this.last_cmdractivity_lookup["activityStatistic"]["overallSearchAndRescue"]}')
             this.tissuesamples_label.config(text=f'Tissue samples collected: {this.last_cmdractivity_lookup["activityStatistic"]["overallTissueSamplesCollected"]}')
 
 def update_browser_source(event = None) -> None:
