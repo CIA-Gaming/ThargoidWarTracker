@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 this = sys.modules[__name__] 
 this.base_url : str = "https://twt.cia-gaming.de/api/v2"
-this.version : str = "0.1.4"
+this.version : str = "0.1.5"
 this.git_version: str = None
 this.cmdr_name : str = None
 this.browsersource_url : tk.StringVar = tk.StringVar(master=None, value="placeholder")
