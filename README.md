@@ -4,7 +4,7 @@ A plugin for Elite Dangerous Market Connector that tracks activity in the thargo
 # Warning Thargoid samples are in alpha status.
 We are currently testing with the plugin how to best track Thargoid samples.
 
-# In order not to falsify the statistics:
+In order not to falsify the statistics:
 - Please do not collect samples with taxis.
 - Please only leave them in your cargo.
 - Please sell directly in the Gameloop (Station or Carrier).
