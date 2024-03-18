@@ -1,6 +1,16 @@
 # ThargoidWarTracker
 A plugin for Elite Dangerous Market Connector that tracks activity in the thargoid war.
 
+# Warning Thargoid samples are in ALPHA STATUS.
+We are currently testing with the plugin how to best track Thargoid samples.
+
+In order not to falsify the statistics:
+- Please do not collect samples with taxis.
+- Please only leave them in your cargo.
+- Please sell directly in the gameloop (Station or Carrier).
+- Place a buy order on your carrier and sell it to your own carrier.
+We are working on a solution.
+
 ## How to get started?
 1. If you didn't do so already, head to the Releases and get the latest version of the plugin
 
