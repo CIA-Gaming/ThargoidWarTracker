@@ -359,8 +359,12 @@ def journal_entry(cmdr: str, is_beta: bool, system: str, station: str, entry: Mu
     
     if entry["event"] == "ApproachSettlement":
         this.current_star_system_address = str(entry["SystemAddress"])
-        this.current_station = entry["Name"]
-        this.current_Station_market_id = str(entry["MarketID"])
+        if (str(entry["Name"]).startswith("$Settlement_Unflattened_TGMegaBarnacle")):
+            this.current_station = "Thargoid Spire Site"
+            this.current_Station_market_id = str(2)
+        else:
+            this.current_station = entry["Name"]
+            this.current_Station_market_id = str(entry["MarketID"])
         return
 
     if this.apikey is None:
