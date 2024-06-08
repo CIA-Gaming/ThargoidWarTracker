@@ -63,8 +63,8 @@ this.apikey : str = None
 
 # UI elements
     # Preferences
-this.browsersource_url_entry : nb.Entry = None
-this.apikey_entry : nb.Entry = None
+this.browsersource_url_entry : nb.EntryMenu = None
+this.apikey_entry : nb.EntryMenu = None
 this.browsersource_url_tk : tk.StringVar = tk.StringVar(master=None, value="")
 this.apikey_tk : tk.StringVar = tk.StringVar(master=None, value="")
 
@@ -130,16 +130,16 @@ def plugin_stop() -> None:
 
     logger.debug("Shutting down...")   
 
-    config.set(f'twt_{this.cmdr_name}_lastSystemName', this.current_star_system_name)
-    config.set(f'twt_{this.cmdr_name}_lastSystemAddress', this.current_star_system_address)
-    config.set(f'twt_{this.cmdr_name}_lastStationName', this.current_station)
-    config.set(f'twt_{this.cmdr_name}_lastStationMarketId', this.current_station_market_id)
+    if this.cmdr_name is not None:
+        config.set(f'twt_{this.cmdr_name}_lastSystemName', this.current_star_system_name)
+        config.set(f'twt_{this.cmdr_name}_lastSystemAddress', this.current_star_system_address)
+        config.set(f'twt_{this.cmdr_name}_lastStationName', this.current_station)
+        config.set(f'twt_{this.cmdr_name}_lastStationMarketId', this.current_station_market_id)
 
     this.shutting_down = True
     this.queue.put(None)
 
-    this.thread.stop()
-    this.thread.join()
+    this.thread.join()  # type: ignore
     this.thread = None
 
     this.session.close()
@@ -167,12 +167,12 @@ def plugin_prefs(parent: tk.Tk, cmdr: str, is_beta: bool) -> tk.Frame:
     ttk.Separator(frame, orient=tk.HORIZONTAL).grid(columnspan=2, padx=10, pady=2, sticky=tk.EW, row=2)
     nb.Label(frame, text="Paste the API Key you got from your profile page from https://twt.cia-gaming.de here").grid(padx=10, columnspan=2, sticky=tk.W)
     nb.Label(frame, text="Your API Key:").grid(column=0, padx=10, sticky=tk.W, row=4)
-    this.apikey_entry = nb.Entry(frame, textvariable=this.apikey_tk).grid(column=1, padx=10, pady=2, sticky=tk.EW, row=4)
+    this.apikey_entry = nb.EntryMenu(frame, textvariable=this.apikey_tk).grid(column=1, padx=10, pady=2, sticky=tk.EW, row=4)
     nb.Label(frame, text="Browser Source").grid(padx=10, sticky=tk.W, row=7)
     ttk.Separator(frame, orient=tk.HORIZONTAL).grid(columnspan=2, padx=10, pady=2, sticky=tk.EW, row=8)
     nb.Label(frame, text="You can use this browser source to show your statistics through OBS while streaming").grid(padx=10, columnspan=2, sticky=tk.W, row=9)
     nb.Label(frame, text="Your Browser Source URL:").grid(column=0, padx=10, sticky=tk.W, row=9)
-    this.browsersource_url_entry = nb.Entry(frame, textvariable=this.browsersource_url_tk, state="readonly").grid(column=1, padx=10, pady=2, sticky=tk.EW, row=10)
+    this.browsersource_url_entry = nb.EntryMenu(frame, textvariable=this.browsersource_url_tk, state="readonly").grid(column=1, padx=10, pady=2, sticky=tk.EW, row=10)
 
     return frame
 
